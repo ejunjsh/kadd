@@ -23,6 +23,9 @@ require (
 	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
+	k8s.io/api v0.0.0-20181130031204-d04500c8c3dd
+	k8s.io/apimachinery v0.0.0-20190221213512-86fb29eff628
 	k8s.io/cli-runtime v0.0.0-20190228180923-a9e421a79326
 	k8s.io/client-go v0.0.0-20190228174230-b40b2a5939e4
+	k8s.io/kubernetes v1.13.1
 )

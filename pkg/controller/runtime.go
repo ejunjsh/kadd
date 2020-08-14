@@ -1,4 +1,4 @@
-package runtime
+package controller
 
 import (
 	"context"
@@ -43,7 +43,7 @@ type ContainerInfo struct {
 }
 
 func (c *DockerContainerRuntime) PullImage(ctx context.Context,
-	image string, skipTLS bool, authStr string,
+	image string, authStr string,
 	stdout io.WriteCloser) error {
 	authBytes := base64.URLEncoding.EncodeToString([]byte(authStr))
 	out, err := c.Client.ImagePull(ctx, image, types.ImagePullOptions{RegistryAuth: string(authBytes)})

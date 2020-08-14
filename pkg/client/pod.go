@@ -1,38 +1,43 @@
-package pkg
+package client
 
 import (
-	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func getPod() *corev1.Pod {
+const defaultCtrlPodName = "kps-controller"
+const defaultCtrlPodNs = "default"
+const defaultCtrlImage = "kps-controller"
+const defaultCtrlPort = 10035
+
+func getCtrlPod(nodeName string) *corev1.Pod {
 
 	prop := corev1.MountPropagationBidirectional
 	directoryCreate := corev1.HostPathDirectoryOrCreate
 	priveleged := true
-	agentPod := &corev1.Pod{
+	ctrlPod := &corev1.Pod{
 		TypeMeta: v1.TypeMeta{
 			Kind:       "Pod",
 			APIVersion: "v1",
 		},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      o.AgentPodName,
-			Namespace: o.AgentPodNamespace,
+			Name:      defaultCtrlPodName,
+			Namespace: defaultCtrlPodNs,
 		},
 		Spec: corev1.PodSpec{
 			HostPID:  true,
-			NodeName: o.AgentPodNode,
+			NodeName: nodeName,
 			Containers: []corev1.Container{
 				{
-					Name:            "debug-agent",
-					Image:           o.AgentImage,
+					Name:            defaultCtrlPodName,
+					Image:           defaultCtrlImage,
 					ImagePullPolicy: corev1.PullAlways,
 					LivenessProbe: &corev1.Probe{
 						Handler: corev1.Handler{
 							HTTPGet: &corev1.HTTPGetAction{
 								Path: "/healthz",
-								Port: intstr.FromInt(10027),
+								Port: intstr.FromInt(defaultCtrlPort),
 							},
 						},
 						InitialDelaySeconds: 10,
@@ -44,7 +49,6 @@ func getPod() *corev1.Pod {
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: &priveleged,
 					},
-					Resources: o.buildAgentResourceRequirements(),
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "docker",
@@ -54,7 +58,6 @@ func getPod() *corev1.Pod {
 							Name:      "cgroup",
 							MountPath: "/sys/fs/cgroup",
 						},
-						// containerd client will need to access /var/data, /run/containerd and /run/runc
 						{
 							Name:      "vardata",
 							MountPath: "/var/data",
@@ -76,8 +79,8 @@ func getPod() *corev1.Pod {
 					Ports: []corev1.ContainerPort{
 						{
 							Name:          "http",
-							HostPort:      int32(o.AgentPort),
-							ContainerPort: 10027,
+							HostPort:      defaultCtrlPort,
+							ContainerPort: defaultCtrlPort,
 						},
 					},
 				},
@@ -136,6 +139,5 @@ func getPod() *corev1.Pod {
 			RestartPolicy: corev1.RestartPolicyNever,
 		},
 	}
-	fmt.Fprintf(o.Out, "Agent Pod info: [Name:%s, Namespace:%s, Image:%s, HostPort:%d, ContainerPort:%d]\n", agentPod.ObjectMeta.Name, agentPod.ObjectMeta.Namespace, agentPod.Spec.Containers[0].Image, agentPod.Spec.Containers[0].Ports[0].HostPort, agentPod.Spec.Containers[0].Ports[0].ContainerPort)
-	return agentPod
+	return ctrlPod
 }
