@@ -1,4 +1,4 @@
-package pkg
+package runtime
 
 import (
 	"context"
@@ -12,26 +12,41 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"io"
 	"io/ioutil"
+	"k8s.io/client-go/tools/remotecommand"
 	"log"
+	"time"
 )
 
-type ContainerRuntime interface {
-	PullImage(ctx context.Context, image string,
-		skipTLS bool, authStr string,
-		stdout io.WriteCloser) error
-	ContainerInfo(ctx context.Context, cfg RunConfig) (ContainerInfo, error)
-	RunDebugContainer(cfg RunConfig) error
+type DockerContainerRuntime struct {
+	Client *dockerclient.Client
 }
 
-type DockerContainerRuntime struct {
-	client *dockerclient.Client
+type RunConfig struct {
+	context              context.Context
+	timeout              time.Duration
+	idOfContainerToDebug string
+	image                string
+	command              []string
+	stdin                io.Reader
+	stdout               io.WriteCloser
+	stderr               io.WriteCloser
+	tty                  bool
+	resize               <-chan remotecommand.TerminalSize
+	clientHostName       string
+	clientUserName       string
+	verbosity            int
+}
+
+type ContainerInfo struct {
+	Pid               int64
+	MountDestinations []string
 }
 
 func (c *DockerContainerRuntime) PullImage(ctx context.Context,
 	image string, skipTLS bool, authStr string,
 	stdout io.WriteCloser) error {
 	authBytes := base64.URLEncoding.EncodeToString([]byte(authStr))
-	out, err := c.client.ImagePull(ctx, image, types.ImagePullOptions{RegistryAuth: string(authBytes)})
+	out, err := c.Client.ImagePull(ctx, image, types.ImagePullOptions{RegistryAuth: string(authBytes)})
 	if err != nil {
 		return err
 	}
@@ -43,7 +58,7 @@ func (c *DockerContainerRuntime) PullImage(ctx context.Context,
 
 func (c *DockerContainerRuntime) ContainerInfo(ctx context.Context, cfg RunConfig) (ContainerInfo, error) {
 	var ret ContainerInfo
-	cntnr, err := c.client.ContainerInspect(ctx, cfg.idOfContainerToDebug)
+	cntnr, err := c.Client.ContainerInspect(ctx, cfg.idOfContainerToDebug)
 	if err != nil {
 		return ContainerInfo{}, err
 	}
@@ -92,7 +107,7 @@ func (c *DockerContainerRuntime) CreateContainer(cfg RunConfig) (*container.Cont
 	}
 	ctx, cancel := cfg.getContextWithTimeout()
 	defer cancel()
-	body, err := c.client.ContainerCreate(ctx, config, hostConfig, nil, "")
+	body, err := c.Client.ContainerCreate(ctx, config, hostConfig, nil, "")
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +123,7 @@ func (c *DockerContainerRuntime) containerMode(idOfCntnrToDbg string) string {
 func (c *DockerContainerRuntime) StartContainer(cfg RunConfig, id string) error {
 	ctx, cancel := cfg.getContextWithTimeout()
 	defer cancel()
-	err := c.client.ContainerStart(ctx, id, types.ContainerStartOptions{})
+	err := c.Client.ContainerStart(ctx, id, types.ContainerStartOptions{})
 	if err != nil {
 		return err
 	}
@@ -120,7 +135,7 @@ func (c *DockerContainerRuntime) CleanContainer(cfg RunConfig, id string) {
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.timeout)
 	defer cancel()
 	// wait the container gracefully exit
-	statusCh, errCh := c.client.ContainerWait(ctx, id, container.WaitConditionNotRunning)
+	statusCh, errCh := c.Client.ContainerWait(ctx, id, container.WaitConditionNotRunning)
 	var rmErr error
 	select {
 	case err := <-errCh:
@@ -143,7 +158,7 @@ func (c *DockerContainerRuntime) RmContainer(cfg RunConfig, id string, force boo
 	// cleanup procedure should use background context
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.timeout)
 	defer cancel()
-	return c.client.ContainerRemove(ctx, id,
+	return c.Client.ContainerRemove(ctx, id,
 		types.ContainerRemoveOptions{
 			Force: true,
 		})
@@ -163,7 +178,7 @@ func (c *DockerContainerRuntime) AttachToContainer(cfg RunConfig, container stri
 	}
 	ctx, cancel := cfg.getContextWithTimeout()
 	defer cancel()
-	resp, err := c.client.ContainerAttach(ctx, container, opts)
+	resp, err := c.Client.ContainerAttach(ctx, container, opts)
 	if err != nil {
 		return err
 	}
@@ -175,7 +190,7 @@ func (c *DockerContainerRuntime) AttachToContainer(cfg RunConfig, container stri
 func (c *DockerContainerRuntime) resizeContainerTTY(cfg RunConfig, id string, height, width uint) error {
 	ctx, cancel := cfg.getContextWithTimeout()
 	defer cancel()
-	return c.client.ContainerResize(ctx, id, types.ResizeOptions{
+	return c.Client.ContainerResize(ctx, id, types.ResizeOptions{
 		Height: height,
 		Width:  width,
 	})
