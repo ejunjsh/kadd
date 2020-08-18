@@ -124,14 +124,21 @@ func (cli *KubeClient) launchController(nodeName string) (*corev1.Pod, error) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
-		fmt.Fprintf(o.Out, "Waiting for pod %s to run...\n", ctrlPod.Name)
 		event, err := watch.UntilWithoutRetry(ctx, watcher, conditions.PodRunning)
 		if err != nil {
-			fmt.Fprintf(o.ErrOut, "Error occurred while waiting for pod to run:  %v\n", err)
 			return nil, err
 		}
 		ctrlPod = event.Object.(*corev1.Pod)
 		return ctrlPod, nil
 
 	}
+}
+
+func (cli *KubeClient) getControllerUrl(pod *corev1.Pod) *url.URL {
+	req := cli.RestClient.Post().
+		Resource("pods").
+		Namespace(pod.Namespace).
+		Name(pod.Name).
+		SubResource("portforward")
+	return req.URL()
 }

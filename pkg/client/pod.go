@@ -36,7 +36,7 @@ func getCtrlPod(nodeName string) *corev1.Pod {
 					LivenessProbe: &corev1.Probe{
 						Handler: corev1.Handler{
 							HTTPGet: &corev1.HTTPGetAction{
-								Path: "/healthz",
+								Path: "/health",
 								Port: intstr.FromInt(defaultCtrlPort),
 							},
 						},

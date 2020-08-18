@@ -10,7 +10,7 @@ import (
 
 type attacher struct {
 	targetId string
-	cmd      string
+	cmd      []string
 	image    string
 	context  context.Context
 }
@@ -29,5 +29,6 @@ func (a *attacher) AttachContainer(name string, uid kubetype.UID, container stri
 		return error
 	}
 
+	cfg := RunConfig{a.context, RuntimeTimeout, a.targetId, a.image, a.cmd, in, out, err, tty, resize}
 	return runtime.RunDebugContainer(cfg)
 }

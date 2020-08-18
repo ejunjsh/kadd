@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	term "github.com/aylei/kubectl-debug/pkg/util"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"io"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/remotecommand"
 	"log"
 	"time"
@@ -22,24 +22,20 @@ type DockerContainerRuntime struct {
 }
 
 type RunConfig struct {
-	context              context.Context
-	timeout              time.Duration
-	idOfContainerToDebug string
-	image                string
-	command              []string
-	stdin                io.Reader
-	stdout               io.WriteCloser
-	stderr               io.WriteCloser
-	tty                  bool
-	resize               <-chan remotecommand.TerminalSize
-	clientHostName       string
-	clientUserName       string
-	verbosity            int
+	context  context.Context
+	timeout  time.Duration
+	targetId string
+	image    string
+	command  []string
+	stdin    io.Reader
+	stdout   io.WriteCloser
+	stderr   io.WriteCloser
+	tty      bool
+	resize   <-chan remotecommand.TerminalSize
 }
 
-type ContainerInfo struct {
-	Pid               int64
-	MountDestinations []string
+func (c *RunConfig) getContextWithTimeout() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(c.context, c.timeout)
 }
 
 func (c *DockerContainerRuntime) PullImage(ctx context.Context,
@@ -51,22 +47,8 @@ func (c *DockerContainerRuntime) PullImage(ctx context.Context,
 		return err
 	}
 	defer out.Close()
-	// write pull progress to user
-	term.DisplayJSONMessagesStream(out, stdout, 1, true, nil)
+	stdout.Write([]byte("image pulled...\n\r"))
 	return nil
-}
-
-func (c *DockerContainerRuntime) ContainerInfo(ctx context.Context, cfg RunConfig) (ContainerInfo, error) {
-	var ret ContainerInfo
-	cntnr, err := c.Client.ContainerInspect(ctx, cfg.idOfContainerToDebug)
-	if err != nil {
-		return ContainerInfo{}, err
-	}
-	ret.Pid = int64(cntnr.State.Pid)
-	for _, mount := range cntnr.Mounts {
-		ret.MountDestinations = append(ret.MountDestinations, mount.Destination)
-	}
-	return ret, nil
 }
 
 func (c *DockerContainerRuntime) RunDebugContainer(cfg RunConfig) error {
@@ -99,10 +81,10 @@ func (c *DockerContainerRuntime) CreateContainer(cfg RunConfig) (*container.Cont
 		StdinOnce:  true,
 	}
 	hostConfig := &container.HostConfig{
-		NetworkMode: container.NetworkMode(c.containerMode(cfg.idOfContainerToDebug)),
-		UsernsMode:  container.UsernsMode(c.containerMode(cfg.idOfContainerToDebug)),
-		IpcMode:     container.IpcMode(c.containerMode(cfg.idOfContainerToDebug)),
-		PidMode:     container.PidMode(c.containerMode(cfg.idOfContainerToDebug)),
+		NetworkMode: container.NetworkMode(c.containerMode(cfg.targetId)),
+		UsernsMode:  container.UsernsMode(c.containerMode(cfg.targetId)),
+		IpcMode:     container.IpcMode(c.containerMode(cfg.targetId)),
+		PidMode:     container.PidMode(c.containerMode(cfg.targetId)),
 		CapAdd:      strslice.StrSlice([]string{"SYS_PTRACE", "SYS_ADMIN"}),
 	}
 	ctx, cancel := cfg.getContextWithTimeout()
@@ -149,8 +131,6 @@ func (c *DockerContainerRuntime) CleanContainer(cfg RunConfig, id string) {
 	}
 	if rmErr != nil {
 		log.Printf("error remove container: %s \n", id)
-	} else if cfg.verbosity > 0 {
-		log.Printf("Debug session end, debug container %s removed", id)
 	}
 }
 
@@ -166,7 +146,7 @@ func (c *DockerContainerRuntime) RmContainer(cfg RunConfig, id string, force boo
 
 // AttachToContainer do `docker attach`.  Blocks until container I/O complete
 func (c *DockerContainerRuntime) AttachToContainer(cfg RunConfig, container string) error {
-	HandleResizing(cfg.resize, func(size remotecommand.TerminalSize) {
+	handleResizing(cfg.resize, func(size remotecommand.TerminalSize) {
 		c.resizeContainerTTY(cfg, container, uint(size.Height), uint(size.Width))
 	})
 
@@ -242,4 +222,17 @@ func (c *DockerContainerRuntime) redirectResponseToOutputStream(cfg RunConfig, r
 		_, err = stdcopy.StdCopy(stdout, stderr, resp)
 	}
 	return err
+}
+
+func handleResizing(resize <-chan remotecommand.TerminalSize, resizeFunc func(size remotecommand.TerminalSize)) {
+	go func() {
+		defer runtime.HandleCrash()
+
+		for size := range resize {
+			if size.Height < 1 || size.Width < 1 {
+				continue
+			}
+			resizeFunc(size)
+		}
+	}()
 }

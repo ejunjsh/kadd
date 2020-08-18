@@ -1,7 +1,11 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/ejunjsh/kps/pkg/controller"
+)
 
 func main() {
 	fmt.Println("hello world")
+	controller.Start()
 }
