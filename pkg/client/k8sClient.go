@@ -18,8 +18,6 @@ import (
 	"time"
 )
 
-const name = "haha"
-
 type KubeClient struct {
 	Clientset  *kubernetes.Clientset
 	CoreClient coreclient.CoreV1Interface
@@ -49,11 +47,11 @@ func NewKubeClient() (*KubeClient, error) {
 	}, nil
 }
 
-func (cli *KubeClient) getPodByName(ns string, podName string) (*corev1.Pod, error) {
-	return cli.CoreClient.Pods(ns).Get(podName, metaV1.GetOptions{})
+func (cli *KubeClient) GetPodByName(context context.Context, ns string, podName string) (*corev1.Pod, error) {
+	return cli.CoreClient.Pods(ns).Get(context, podName, metaV1.GetOptions{})
 }
 
-func (cli *KubeClient) getContainerIDByName(pod *corev1.Pod, containerName string) (string, error) {
+func (cli *KubeClient) GetContainerIDByName(pod *corev1.Pod, containerName string) (string, error) {
 	for _, containerStatus := range pod.Status.ContainerStatuses {
 		if containerStatus.Name != containerName {
 			continue
@@ -79,7 +77,7 @@ func (cli *KubeClient) getContainerIDByName(pod *corev1.Pod, containerName strin
 	return "", fmt.Errorf("cannot find specified container %s", containerName)
 }
 
-func (cli *KubeClient) remoteExecute(
+func (cli *KubeClient) RemoteExecute(
 	method string,
 	url *url.URL,
 	stdin io.Reader,
@@ -102,8 +100,8 @@ func (cli *KubeClient) remoteExecute(
 
 }
 
-func (cli *KubeClient) launchController(nodeName string) (*corev1.Pod, error) {
-	ctrlPod, err := cli.getPodByName(defaultCtrlPodNs, defaultCtrlPodName)
+func (cli *KubeClient) LaunchController(ctx context.Context, nodeName string) (*corev1.Pod, error) {
+	ctrlPod, err := cli.GetPodByName(ctx, defaultCtrlPodNs, defaultCtrlPodName)
 	if err != nil {
 		return nil, err
 	}
@@ -112,17 +110,17 @@ func (cli *KubeClient) launchController(nodeName string) (*corev1.Pod, error) {
 	} else {
 		ctrlPod = getCtrlPod(nodeName)
 
-		ctrlPod, err := cli.CoreClient.Pods(defaultCtrlPodNs).Create(ctrlPod)
+		ctrlPod, err := cli.CoreClient.Pods(defaultCtrlPodNs).Create(ctx, ctrlPod, metaV1.CreateOptions{})
 		if err != nil {
 			return ctrlPod, err
 		}
 
-		watcher, err := cli.CoreClient.Pods(defaultCtrlPodNs).Watch(metaV1.SingleObject(ctrlPod.ObjectMeta))
+		watcher, err := cli.CoreClient.Pods(defaultCtrlPodNs).Watch(ctx, metaV1.SingleObject(ctrlPod.ObjectMeta))
 		if err != nil {
 			return nil, err
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 		defer cancel()
 		event, err := watch.UntilWithoutRetry(ctx, watcher, conditions.PodRunning)
 		if err != nil {
@@ -134,11 +132,13 @@ func (cli *KubeClient) launchController(nodeName string) (*corev1.Pod, error) {
 	}
 }
 
-func (cli *KubeClient) getControllerUrl(pod *corev1.Pod) *url.URL {
+func (cli *KubeClient) GetControllerUrl(pod *corev1.Pod) *url.URL {
 	req := cli.RestClient.Post().
 		Resource("pods").
 		Namespace(pod.Namespace).
 		Name(pod.Name).
-		SubResource("portforward")
+		SubResource("proxy").
+		Name(fmt.Sprintf("%s:%d", pod.Name, defaultCtrlPort)).
+		Suffix("/api/v1/create")
 	return req.URL()
 }

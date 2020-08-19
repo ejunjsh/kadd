@@ -9,7 +9,7 @@ import (
 const defaultCtrlPodName = "kps-controller"
 const defaultCtrlPodNs = "default"
 const defaultCtrlImage = "kps-controller"
-const defaultCtrlPort = 10035
+const defaultCtrlPort = 8787
 
 func getCtrlPod(nodeName string) *corev1.Pod {
 

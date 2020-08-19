@@ -24,7 +24,7 @@ func Start() error {
 	signal.Notify(stop, os.Interrupt)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/enter", serve)
+	mux.HandleFunc("/api/v1/create", serve)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
 		w.Write([]byte("I'm fine!"))
 	})
