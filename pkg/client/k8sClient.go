@@ -47,8 +47,8 @@ func NewKubeClient() (*KubeClient, error) {
 	}, nil
 }
 
-func (cli *KubeClient) GetPodByName(context context.Context, ns string, podName string) (*corev1.Pod, error) {
-	return cli.CoreClient.Pods(ns).Get(context, podName, metaV1.GetOptions{})
+func (cli *KubeClient) GetPodByName(ns string, podName string) (*corev1.Pod, error) {
+	return cli.CoreClient.Pods(ns).Get(podName, metaV1.GetOptions{})
 }
 
 func (cli *KubeClient) GetContainerIDByName(pod *corev1.Pod, containerName string) (string, error) {
@@ -100,8 +100,8 @@ func (cli *KubeClient) RemoteExecute(
 
 }
 
-func (cli *KubeClient) LaunchController(ctx context.Context, nodeName string) (*corev1.Pod, error) {
-	ctrlPod, err := cli.GetPodByName(ctx, defaultCtrlPodNs, defaultCtrlPodName)
+func (cli *KubeClient) LaunchController(nodeName string) (*corev1.Pod, error) {
+	ctrlPod, err := cli.GetPodByName(defaultCtrlPodNs, defaultCtrlPodName)
 	if err != nil {
 		return nil, err
 	}
@@ -110,17 +110,17 @@ func (cli *KubeClient) LaunchController(ctx context.Context, nodeName string) (*
 	} else {
 		ctrlPod = getCtrlPod(nodeName)
 
-		ctrlPod, err := cli.CoreClient.Pods(defaultCtrlPodNs).Create(ctx, ctrlPod, metaV1.CreateOptions{})
+		ctrlPod, err := cli.CoreClient.Pods(defaultCtrlPodNs).Create(ctrlPod)
 		if err != nil {
 			return ctrlPod, err
 		}
 
-		watcher, err := cli.CoreClient.Pods(defaultCtrlPodNs).Watch(ctx, metaV1.SingleObject(ctrlPod.ObjectMeta))
+		watcher, err := cli.CoreClient.Pods(defaultCtrlPodNs).Watch(metaV1.SingleObject(ctrlPod.ObjectMeta))
 		if err != nil {
 			return nil, err
 		}
 
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 		event, err := watch.UntilWithoutRetry(ctx, watcher, conditions.PodRunning)
 		if err != nil {

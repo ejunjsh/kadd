@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	dockerterm "github.com/docker/docker/pkg/term"
@@ -14,10 +13,9 @@ import (
 	"os"
 )
 
-func main()  {
+func main() {
 
-
-	var image,containerName,namespace string
+	var image, containerName, namespace string
 
 	cmd := &cobra.Command{
 		Use:                   "",
@@ -33,32 +31,37 @@ func main()  {
 				command = []string{"bash"}
 			}
 
-			kcli, err:= client.NewKubeClient()
-			if err!=nil{
+			kcli, err := client.NewKubeClient()
+			if err != nil {
 				cmdutil.CheckErr(err)
 			}
 
-			ctx,cancel:=context.WithCancel(context.Background())
-			defer cancel()
-			pod ,err:= kcli.GetPodByName(ctx,namespace,podName)
-			if err!=nil{
+			pod, err := kcli.GetPodByName(namespace, podName)
+			if err != nil {
 				cmdutil.CheckErr(err)
 			}
 
 			if len(containerName) == 0 {
 				if len(pod.Spec.Containers) > 1 {
 					usageString := fmt.Sprintf("Defaulting container name to %s.", pod.Spec.Containers[0].Name)
-					fmt.Printf( "%s\n\r", usageString)
+					fmt.Printf("%s\n\r", usageString)
 				}
 				containerName = pod.Spec.Containers[0].Name
 			}
 
-			containerUri, err:=kcli.GetContainerIDByName(pod,containerName)
-			if err!=nil{
+			containerUri, err := kcli.GetContainerIDByName(pod, containerName)
+			if err != nil {
 				cmdutil.CheckErr(err)
 			}
 
-			remoteUrl:=kcli.GetControllerUrl(pod)
+			fmt.Println(containerName, containerUri)
+
+			ctrlPod, err := kcli.LaunchController(pod.Spec.NodeName)
+			if err != nil {
+				cmdutil.CheckErr(err)
+			}
+
+			remoteUrl := kcli.GetControllerUrl(ctrlPod)
 			params := url.Values{}
 			params.Add("image", image)
 			params.Add("containerUri", containerUri)
@@ -66,7 +69,7 @@ func main()  {
 			if err != nil {
 				cmdutil.CheckErr(err)
 			}
-			params.Add("cmd",string(commandBytes))
+			params.Add("cmd", string(commandBytes))
 
 			remoteUrl.RawQuery = params.Encode()
 
@@ -83,18 +86,16 @@ func main()  {
 		},
 	}
 
-
 	cmd.Flags().StringVar(&image, "image", "", "")
-	cmd.Flags().StringVarP(&containerName, "container", "c","","")
-	cmd.Flags().StringVarP(&namespace, "namespace", "n","","")
-
+	cmd.Flags().StringVarP(&containerName, "container", "c", "", "")
+	cmd.Flags().StringVarP(&namespace, "namespace", "n", "", "")
 
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
 
-func  setupTTY() term.TTY {
+func setupTTY() term.TTY {
 	t := term.TTY{
 		Out: os.Stdout,
 	}
