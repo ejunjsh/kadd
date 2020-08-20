@@ -1,0 +1,1 @@
+docker build -t ejunjsh/kps-controller:1.0 .

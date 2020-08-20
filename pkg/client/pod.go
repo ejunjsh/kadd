@@ -8,7 +8,7 @@ import (
 
 const defaultCtrlPodName = "kps-controller"
 const defaultCtrlPodNs = "default"
-const defaultCtrlImage = "ejunjsh/kps-controller"
+const defaultCtrlImage = "ejunjsh/kps-controller:1.0"
 const defaultCtrlPort = 8787
 
 func getCtrlPod(nodeName string) *corev1.Pod {
