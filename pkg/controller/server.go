@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	remoteapi "k8s.io/apimachinery/pkg/util/remotecommand"
 	"k8s.io/kubernetes/pkg/kubelet/server/remotecommand"
 	"log"
@@ -56,17 +55,9 @@ func serve(w http.ResponseWriter, req *http.Request) {
 		TTY:    true,
 	}
 
-	image := req.FormValue("image")
-	if len(image) < 1 {
-		http.Error(w, "image must be provided", 400)
-		return
-	}
+	image := "nginx"
 
-	containerUri := req.FormValue("containerUri")
-	if len(containerUri) < 1 {
-		http.Error(w, "containerUri must be provided", 400)
-		return
-	}
+	containerUri := "docker://734bd2abacc2c4303e28346760383baf18176cb9c65a2c849a68584b4a670ece"
 
 	containerUriParts := strings.SplitN(containerUri, "://", 2)
 	if len(containerUriParts) != 2 {
@@ -75,13 +66,8 @@ func serve(w http.ResponseWriter, req *http.Request) {
 
 	targetId := containerUriParts[1]
 
-	cmd := req.FormValue("cmd")
-	var commandSlice []string
-	err := json.Unmarshal([]byte(cmd), &commandSlice)
-	if err != nil || len(commandSlice) < 1 {
-		http.Error(w, "cannot parse command", 400)
-		return
-	}
+	var cccc [1]string
+	cccc[0] = "bash"
 
 	context, cancel := context.WithCancel(req.Context())
 	defer cancel()
@@ -89,7 +75,7 @@ func serve(w http.ResponseWriter, req *http.Request) {
 	remotecommand.ServeAttach(
 		w,
 		req,
-		&attacher{context: context, targetId: targetId, cmd: commandSlice, image: image},
+		&attacher{context: context, targetId: targetId, cmd: cccc[:], image: image},
 		"",
 		"",
 		"",
