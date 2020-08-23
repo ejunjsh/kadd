@@ -11,6 +11,7 @@ import (
 	"k8s.io/kubernetes/pkg/kubectl/util/term"
 	"net/url"
 	"os"
+	"path"
 )
 
 func main() {
@@ -54,8 +55,6 @@ func main() {
 				cmdutil.CheckErr(err)
 			}
 
-			fmt.Println(containerName, containerUri)
-
 			ctrlPod, err := kcli.LaunchController(pod.Spec.NodeName)
 			if err != nil {
 				cmdutil.CheckErr(err)
@@ -73,13 +72,16 @@ func main() {
 
 			remoteUrl.RawQuery = params.Encode()
 
+			remoteUrl.Path += "/" + path.Join(image, url.QueryEscape(containerUri), string(commandBytes))
+
 			t := setupTTY()
 			var sizeQueue remotecommand.TerminalSizeQueue
 			if t.Raw {
 				sizeQueue = t.MonitorSize(t.GetSize())
 			}
-
-			err = kcli.RemoteExecute("POST", remoteUrl, os.Stdin, os.Stdout, os.Stderr, t.Raw, sizeQueue)
+			err = t.Safe(func() error {
+				return kcli.RemoteExecute("POST", remoteUrl, os.Stdin, os.Stdout, os.Stderr, true, sizeQueue)
+			})
 			if err != nil {
 				cmdutil.CheckErr(err)
 			}
@@ -102,6 +104,7 @@ func setupTTY() term.TTY {
 	t.In = os.Stdin
 	t.Raw = true
 	if !t.IsTerminalIn() {
+		fmt.Println("xxx")
 		return t
 	}
 	stdin, stdout, _ := dockerterm.StdStreams()

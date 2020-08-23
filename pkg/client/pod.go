@@ -32,7 +32,7 @@ func getCtrlPod(nodeName string) *corev1.Pod {
 				{
 					Name:            defaultCtrlPodName,
 					Image:           defaultCtrlImage,
-					ImagePullPolicy: corev1.PullAlways,
+					ImagePullPolicy: corev1.PullIfNotPresent,
 					LivenessProbe: &corev1.Probe{
 						Handler: corev1.Handler{
 							HTTPGet: &corev1.HTTPGetAction{

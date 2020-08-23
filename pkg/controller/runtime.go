@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -41,13 +40,12 @@ func (c *RunConfig) getContextWithTimeout() (context.Context, context.CancelFunc
 func (c *DockerContainerRuntime) PullImage(ctx context.Context,
 	image string, authStr string,
 	stdout io.WriteCloser) error {
-	authBytes := base64.URLEncoding.EncodeToString([]byte(authStr))
-	out, err := c.Client.ImagePull(ctx, image, types.ImagePullOptions{RegistryAuth: string(authBytes)})
+	out, err := c.Client.ImagePull(ctx, image, types.ImagePullOptions{})
 	if err != nil {
 		return err
 	}
 	defer out.Close()
-	stdout.Write([]byte("image pulled...\n\r"))
+	io.Copy(stdout, out)
 	return nil
 }
 

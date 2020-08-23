@@ -7,6 +7,10 @@ WORKDIR /root
 RUN go env -w GO111MODULE=on
 RUN go env -w GOPROXY=https://goproxy.cn,direct
 
-RUN go get github.com/ejunjsh/kps/cmd/kps-controller
+COPY . /root
+
+WORKDIR cmd/kps-controller
+
+RUN go install
 
 ENTRYPOINT [ "kps-controller"]

@@ -102,11 +102,8 @@ func (cli *KubeClient) RemoteExecute(
 
 func (cli *KubeClient) LaunchController(nodeName string) (*corev1.Pod, error) {
 	ctrlPod, err := cli.GetPodByName(defaultCtrlPodNs, defaultCtrlPodName)
-	if err != nil {
-		return nil, err
-	}
-	if ctrlPod != nil {
-		return ctrlPod, nil
+	if err == nil {
+		return ctrlPod, err
 	} else {
 		ctrlPod = getCtrlPod(nodeName)
 
@@ -133,12 +130,11 @@ func (cli *KubeClient) LaunchController(nodeName string) (*corev1.Pod, error) {
 }
 
 func (cli *KubeClient) GetControllerUrl(pod *corev1.Pod) *url.URL {
-	req := cli.RestClient.Post().
+	req := cli.RestClient.Get().
 		Resource("pods").
 		Namespace(pod.Namespace).
 		Name(pod.Name).
 		SubResource("proxy").
-		Name(fmt.Sprintf("%s:%d", pod.Name, defaultCtrlPort)).
-		Suffix("/api/v1/create")
+		Suffix("api", "v1", "create")
 	return req.URL()
 }
