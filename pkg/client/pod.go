@@ -22,7 +22,7 @@ func getCtrlPod(nodeName string) *corev1.Pod {
 			APIVersion: "v1",
 		},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      defaultCtrlPodName,
+			Name:      defaultCtrlPodName + "-" + nodeName,
 			Namespace: defaultCtrlPodNs,
 		},
 		Spec: corev1.PodSpec{
@@ -30,7 +30,7 @@ func getCtrlPod(nodeName string) *corev1.Pod {
 			NodeName: nodeName,
 			Containers: []corev1.Container{
 				{
-					Name:            defaultCtrlPodName,
+					Name:            defaultCtrlPodName + "-" + nodeName,
 					Image:           defaultCtrlImage,
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					LivenessProbe: &corev1.Probe{

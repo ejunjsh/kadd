@@ -101,7 +101,7 @@ func (cli *KubeClient) RemoteExecute(
 }
 
 func (cli *KubeClient) LaunchController(nodeName string) (*corev1.Pod, error) {
-	ctrlPod, err := cli.GetPodByName(defaultCtrlPodNs, defaultCtrlPodName)
+	ctrlPod, err := cli.GetPodByName(defaultCtrlPodNs, defaultCtrlPodName+"-"+nodeName)
 	if err == nil {
 		return ctrlPod, err
 	} else {
