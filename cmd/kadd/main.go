@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	dockerterm "github.com/docker/docker/pkg/term"
-	"github.com/ejunjsh/kps/pkg/client"
+	"github.com/ejunjsh/kadd/pkg/client"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/remotecommand"
 	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
@@ -80,7 +80,7 @@ func main() {
 				sizeQueue = t.MonitorSize(t.GetSize())
 			}
 			err = t.Safe(func() error {
-				return kcli.RemoteExecute("POST", remoteUrl, os.Stdin, os.Stdout, os.Stderr, true, sizeQueue)
+				return kcli.RemoteExecute("POST", remoteUrl, t.In, t.Out, t.Out, true, sizeQueue)
 			})
 			if err != nil {
 				cmdutil.CheckErr(err)
@@ -100,11 +100,10 @@ func main() {
 func setupTTY() term.TTY {
 	t := term.TTY{
 		Out: os.Stdout,
+		In:  os.Stdin,
 	}
-	t.In = os.Stdin
 	t.Raw = true
 	if !t.IsTerminalIn() {
-		fmt.Println("xxx")
 		return t
 	}
 	stdin, stdout, _ := dockerterm.StdStreams()

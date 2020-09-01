@@ -1,4 +1,4 @@
-module github.com/ejunjsh/kps
+module github.com/ejunjsh/kadd
 
 go 1.13
 

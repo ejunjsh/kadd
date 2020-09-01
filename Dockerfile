@@ -9,8 +9,8 @@ RUN go env -w GOPROXY=https://goproxy.cn,direct
 
 COPY . /root
 
-WORKDIR cmd/kps-controller
+WORKDIR cmd/kadd-controller
 
 RUN go install
 
-ENTRYPOINT [ "kps-controller"]
+ENTRYPOINT [ "kadd-controller"]

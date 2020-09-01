@@ -6,9 +6,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const defaultCtrlPodName = "kps-controller"
+const defaultCtrlPodName = "kadd-controller"
 const defaultCtrlPodNs = "default"
-const defaultCtrlImage = "ejunjsh/kps-controller:1.0"
+const defaultCtrlImage = "ejunjsh/kadd-controller:1.0"
 const defaultCtrlPort = 8787
 
 func getCtrlPod(nodeName string) *corev1.Pod {
